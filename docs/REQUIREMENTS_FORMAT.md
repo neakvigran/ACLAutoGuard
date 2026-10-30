@@ -7,8 +7,13 @@ It preserves entries without evaluating their semantic conflicts or ACL behavior
 `aclautoguard.requirements_analysis.find_requirement_conflicts(document)` accepts
 the validated document and returns every overlapping pair with opposite expected
 actions as `RequirementConflict(first_id, second_id)`. It does not modify input.
-ACL requirement checking is not implemented yet; the current `analyze` command
-accepts policy files only.
+Host-level ACL requirement checking is available through
+`aclautoguard.requirement_checker.check_host_requirements`, with mandatory explicit
+selection of applicable requirement IDs. It supports `/32` endpoints, TCP/UDP
+with a specific destination port, and ICMP. Broader selected requirements are
+rejected. Any contradictory pair in the document blocks checking, including
+unselected pairs. Results compare modeled actions only. The current `analyze`
+command accepts policy files only.
 
 Requirements describe intended access and must be reviewed separately from ACL
 rules. Do not generate expected outcomes from the policy under test: that would

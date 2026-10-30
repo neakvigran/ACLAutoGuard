@@ -39,6 +39,21 @@ Quote paths containing spaces, for example `analyze "my policies/policy.yaml"`.
 Noninteractive exit codes are 0 for no detected shadows, 1 for detected shadows, and 2 for
 input or usage errors. Help exits with 0.
 
+Check explicitly selected host requirements against a policy model:
+
+```sh
+.venv/bin/aclautoguard check examples/policies/corrected.yaml examples/requirements/baseline.yaml --ids T1 T2 T3
+```
+
+For `check`, exit 0 means all selected modeled decisions agree, 1 means at least
+one mismatch, and 2 means invalid or unsupported input. Each result shows
+`MATCH` or `MISMATCH`, expected and modeled actions, and the deciding rule or
+default action. These are static comparisons; no packets are sent. Selecting IDs
+asserts that this policy applies to their traffic; routing and ACL attachment
+remain unverified. Unselected requirements are not evaluated. Run `analyze`
+separately for shadow findings. The interactive shell supports the same `check`
+syntax, including explicit `--ids` selection.
+
 The analyzer does not check several earlier rules jointly covering a later
 rule. No findings does not prove security or compliance with access requirements.
 A covering rule may itself be shadowed; it does not necessarily decide packet
@@ -49,8 +64,52 @@ The [independent requirements format](docs/REQUIREMENTS_FORMAT.md) and
 input contract. Safe requirements loading and field validation are available
 through `aclautoguard.requirements.load_requirements`. On a validated document,
 `aclautoguard.requirements_analysis.find_requirement_conflicts` detects overlapping
-requirements that demand opposite actions. ACL requirement checking is not
-implemented yet; requirements files cannot be passed to `analyze`.
+requirements that demand opposite actions. Host-level ACL requirement checking
+is available through `check` and the Python API below. The `analyze` command
+continues to accept policy files only.
+
+The Python API `aclautoguard.evaluator.evaluate_connection` evaluates one concrete
+TCP, UDP, or ICMP flow against a policy returned by `load_policy`. It returns a
+`Decision(action, matched_rule_id)`; a `None` rule ID identifies the default action.
+Supply individual IPv4 address strings and a destination port for TCP/UDP (no
+port for ICMP). Invalid traffic input raises the module's `ConnectionError`.
+The policy protocol `ip` is a wildcard, not a concrete traffic protocol.
+This function is not exposed as a CLI command yet. It models a policy decision
+only; it sends no traffic and does not establish routing, ACL attachment, return
+traffic behavior, or real service reachability. The caller must establish that
+the evaluated policy applies to the flow.
+
+`aclautoguard.requirement_checker.check_host_requirements(policy, requirements,
+requirement_ids=["T1", "T2", "T3"])` compares explicitly selected requirements
+with modeled policy decisions. Both documents must already be validated. Each
+result includes the requirement ID, expected action, decision, and `satisfied`
+boolean. Selection asserts applicability; it does not verify the network path.
+Only `/32` endpoints with TCP/UDP and a specific destination port, or ICMP, are
+supported. Invalid selections, unsupported selected requirements, and any
+contradiction in the requirements document raise `RequirementCheckError`.
+Unselected entries receive no result. These are static model checks, not live
+connectivity results or proof of broader subnet access requirements.
+
+For file-based callers, the shared application function loads and validates both
+documents before checking selected IDs:
+
+```python
+from aclautoguard.application import check_policy_requirements
+
+results = check_policy_requirements(
+    "examples/policies/corrected.yaml",
+    "examples/requirements/baseline.yaml",
+    requirement_ids=["T1", "T2", "T3"],
+)
+for result in results:
+    print(result.requirement_id, result.expected_action, result.decision, result.satisfied)
+```
+
+Loading errors raise `PolicyError` or `RequirementsError`; invalid selections,
+conflicts, and unsupported checks raise `RequirementCheckError`. A mismatch is
+returned as a result with `satisfied=False`. This function does not run shadow
+analysis; use `analyze_policy` separately for that operation. The CLI `check`
+command and interactive shell both use this function and share result formatting.
 
 ## Interactive shell
 
@@ -60,16 +119,19 @@ activating the environment):
 ```text
 ACLAutoGuard> help
 ACLAutoGuard> help analyze
+ACLAutoGuard> help check
 ACLAutoGuard> analyze examples/policies/shadowed.yaml
 ACLAutoGuard> analyze "my policies/policy.yaml"
+ACLAutoGuard> check examples/policies/corrected.yaml examples/requirements/baseline.yaml --ids T1 T2 T3
 ACLAutoGuard> exit
 ```
 
 EOF (Ctrl+D on Linux) also closes the shell cleanly with exit code 0.
-Analysis findings and input errors leave the shell open for the next command.
+Analysis findings, requirement mismatches, and input errors leave the shell open
+for the next command. `check --help` also returns to the prompt.
 Ctrl+C at the prompt exits with code 130. Blank lines do nothing. Both
-interfaces use the same analysis and output functions. Only `help`, `analyze`,
-and `exit` are implemented in the shell.
+interfaces use the same analysis, requirement checking, and output functions.
+Only `help`, `analyze`, `check`, and `exit` are implemented in the shell.
 
 ## Verify
 
