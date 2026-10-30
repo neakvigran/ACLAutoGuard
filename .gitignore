@@ -1,0 +1,30 @@
+# Python environment and generated files
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# Local credentials
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+
+# Generated evidence and device backups
+backups/
+reports/
+captures/
+logs/
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
