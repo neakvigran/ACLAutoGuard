@@ -1,0 +1,60 @@
+# Proposed isolated-lab addresses; topology and device behavior are unverified.
+# These requirements are reviewed independently of the proposed ACL rules.
+schema_version: 1
+name: university_baseline_samples
+requirements:
+  - id: T1
+    expected_action: permit
+    protocol: tcp
+    source: 192.168.10.10/32
+    destination: 192.168.30.10/32
+    destination_port: 80
+
+  - id: T2
+    expected_action: deny
+    protocol: tcp
+    source: 192.168.10.10/32
+    destination: 192.168.30.10/32
+    destination_port: 22
+
+  - id: T3
+    expected_action: deny
+    protocol: tcp
+    source: 192.168.10.10/32
+    destination: 192.168.20.20/32
+    destination_port: 80
+
+  - id: T4
+    expected_action: permit
+    protocol: tcp
+    source: 192.168.20.10/32
+    destination: 192.168.30.10/32
+    destination_port: 80
+
+  - id: T5
+    expected_action: permit
+    protocol: tcp
+    source: 192.168.20.10/32
+    destination: 192.168.30.10/32
+    destination_port: 22
+
+  - id: T6
+    expected_action: deny
+    protocol: tcp
+    source: 192.168.10.10/32
+    destination: 192.168.10.1/32
+    destination_port: 22
+
+  - id: T7
+    expected_action: deny
+    protocol: tcp
+    source: 192.168.20.10/32
+    destination: 192.168.20.1/32
+    destination_port: 22
+
+  - id: T8
+    expected_action: permit
+    protocol: tcp
+    source: 192.168.99.10/32
+    destination: 192.168.99.1/32
+    destination_port: 22

@@ -44,6 +44,14 @@ rule. No findings does not prove security or compliance with access requirements
 A covering rule may itself be shadowed; it does not necessarily decide packet
 actions. See [project scope](docs/PROJECT_SCOPE.md) for planned work and boundaries.
 
+The [independent requirements format](docs/REQUIREMENTS_FORMAT.md) and
+[T1–T8 baseline example](examples/requirements/baseline.yaml) define the next
+input contract. Safe requirements loading and field validation are available
+through `aclautoguard.requirements.load_requirements`. On a validated document,
+`aclautoguard.requirements_analysis.find_requirement_conflicts` detects overlapping
+requirements that demand opposite actions. ACL requirement checking is not
+implemented yet; requirements files cannot be passed to `analyze`.
+
 ## Interactive shell
 
 Launch `.venv/bin/aclautoguard` without arguments (or `aclautoguard` after
