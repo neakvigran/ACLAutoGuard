@@ -1,0 +1,17 @@
+schema_version: 1
+name: student_corrected_example
+default_action: deny
+
+rules:
+  - id: rule_20
+    action: permit
+    protocol: tcp
+    source: 192.168.10.0/24
+    destination: 192.168.30.10/32
+    destination_port: 80
+
+  - id: rule_10
+    action: deny
+    protocol: ip
+    source: 192.168.10.0/24
+    destination: 192.168.30.0/24
