@@ -1,183 +1,236 @@
 # ACLAutoGuard
 
-University project for ACL analysis and a planned deployment, traffic-validation,
-and verified-recovery workflow. Current functionality validates YAML policies
-and detects rules fully shadowed by a single earlier rule. Router deployment
-and traffic validation are not implemented.
+ACLAutoGuard is a two-person university project for analyzing ACL changes,
+checking independent access requirements, and eventually deploying changes,
+validating real traffic, and verifying recovery.
 
-## Install for development
+**Current stage: a working static-analysis prototype.** The tool runs locally
+and sends no network traffic. SSH deployment, live traffic validation, and
+rollback are not implemented yet.
 
-Use Python 3.14 (verified with 3.14.7). From the repository root:
+## Current features
+
+- Safe YAML loading with duplicate-key rejection and supported-field validation.
+- Detection of rules fully shadowed by a single earlier rule.
+- Detection of overlapping access requirements that demand opposite actions.
+- First-match policy evaluation for concrete TCP, UDP, and ICMP traffic.
+- Checking explicitly selected host-level requirements against a policy model.
+- Combined static assessment with a blocking decision and optional JSON report.
+- Interactive shell with detailed help, command/option/path completion, and
+  in-session history.
+- Noninteractive commands for scripts and repeatable demonstrations.
+
+## Installation
+
+The verified development environment is Kali Linux with Python **3.14.7**.
+Package metadata requires Python 3.14 or newer; other versions and Windows
+have not been verified.
 
 ```sh
+git clone https://github.com/neakvigran/ACLAutoGuard.git
+cd ACLAutoGuard
 python3.14 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python -m pip install -e .
+source .venv/bin/activate
 ```
 
-Skip environment creation when `.venv` already exists. The editable installation
-keeps the command connected to your working source files. Packaging declares
-the current runtime dependency, PyYAML; `requirements.txt` pins the development
-environment, including tools reserved for later project stages. The build
-backend is pinned separately in `pyproject.toml`.
+If you already have the repository and `.venv`, skip cloning and environment
+creation. The editable installation uses your working source files directly.
+`requirements.txt` pins the development environment, including dependencies for
+planned features. `pyproject.toml` declares the current runtime dependency
+(PyYAML), the pinned build backend, and the executable entry point.
 
-## Run the current CLI
+The examples below run from the repository root with the environment activated.
+Without activation, use `.venv/bin/aclautoguard`. You can also run
+`.venv/bin/python -m aclautoguard`.
 
-From the repository root, using the existing virtual environment:
+## Interactive shell
+
+Launch the application without arguments:
 
 ```sh
-.venv/bin/aclautoguard --help
-.venv/bin/aclautoguard analyze examples/policies/shadowed.yaml
-.venv/bin/aclautoguard analyze examples/policies/corrected.yaml
+aclautoguard
 ```
 
-After activating the environment with `source .venv/bin/activate`, you can use
-`aclautoguard` directly. `python -m aclautoguard` is also supported. Policy paths
-are resolved relative to your current directory.
+```text
+ACLAutoGuard | ACL analysis workspace
+  Local policy analysis | No device connections
+  Type help for commands and examples. Ctrl+D or exit to close.
+  Tab completes commands, options, and paths; Up/Down recalls session history.
 
-Quote paths containing spaces, for example `analyze "my policies/policy.yaml"`.
-Noninteractive exit codes are 0 for no detected shadows, 1 for detected shadows, and 2 for
-input or usage errors. Help exits with 0.
+ACLAutoGuard> help
+```
 
-Check explicitly selected host requirements against a policy model:
+| Command | Purpose | Example |
+| --- | --- | --- |
+| `help [command]` | Show commands, arguments, and examples | `help assess` |
+| `analyze <policy-path>` | Validate a policy and detect single-rule shadows | `analyze examples/policies/shadowed.yaml` |
+| `check <policy-path> <requirements-path> --ids ID [ID ...]` | Compare selected requirements with modeled decisions | `check examples/policies/corrected.yaml examples/requirements/baseline.yaml --ids T1 T2 T3` |
+| `assess <policy-path> <requirements-path> --ids ID [ID ...] [--report PATH]` | Combine shadow and requirement checks | `assess examples/policies/corrected.yaml examples/requirements/baseline.yaml --ids T1 T2 T3` |
+| `exit` | Close the shell | `exit` |
+
+Type `help` for the complete command reference, or `help <command>` for one
+command. Angle brackets mark required values; square brackets mark optional
+parts. Do not type the brackets themselves. `--ids` requires one or more IDs.
+
+### Terminal controls
+
+- **Tab:** complete command names, help topics, options, files, and directories.
+  Press Tab twice to list ambiguous matches on GNU Readline.
+- **Up/Down:** recall commands from this session; no history file is written.
+- **Ctrl+D:** close the shell on Linux. `exit` also closes it with code 0.
+- **Ctrl+C at the prompt:** close with code 130.
+
+Paths are relative to your current directory. Quote paths containing spaces,
+for example `analyze "my policies/policy.yaml"`. Completion inserts shell-safe
+quoting automatically. It completes existing paths, not requirement IDs or new
+report filenames. Type a new report filename manually.
+
+Completion requires Python Readline support, verified with GNU Readline on
+Kali. Systems without Readline retain the plain input shell. Color is used
+only for terminal output; launch with `NO_COLOR=1 aclautoguard` to disable it.
+
+Findings, mismatches, and input errors leave the shell open. `check --help` and
+`assess --help` also return to the prompt. Both interfaces share application
+functions and result formatting.
+
+## Noninteractive usage
 
 ```sh
-.venv/bin/aclautoguard check examples/policies/corrected.yaml examples/requirements/baseline.yaml --ids T1 T2 T3
+aclautoguard --help
+aclautoguard analyze examples/policies/shadowed.yaml
+aclautoguard analyze examples/policies/corrected.yaml
+aclautoguard check examples/policies/corrected.yaml examples/requirements/baseline.yaml --ids T1 T2 T3
+aclautoguard assess examples/policies/corrected.yaml examples/requirements/baseline.yaml --ids T1 T2 T3
 ```
 
-For `check`, exit 0 means all selected modeled decisions agree, 1 means at least
-one mismatch, and 2 means invalid or unsupported input. Each result shows
-`MATCH` or `MISMATCH`, expected and modeled actions, and the deciding rule or
-default action. These are static comparisons; no packets are sent. Selecting IDs
-asserts that this policy applies to their traffic; routing and ACL attachment
-remain unverified. Unselected requirements are not evaluated. Run `analyze`
-separately for shadow findings. The interactive shell supports the same `check`
-syntax, including explicit `--ids` selection.
+| Command | Exit 0 | Exit 1 | Exit 2 |
+| --- | --- | --- | --- |
+| `analyze` | No single-rule shadows found | Shadows found | Input or usage error |
+| `check` | All selected modeled decisions agree | At least one mismatch | Invalid or unsupported input |
+| `assess` | No blocking static findings | Shadow or requirement mismatch | Invalid input, unsupported check, or report export error |
 
-The analyzer does not check several earlier rules jointly covering a later
-rule. No findings does not prove security or compliance with access requirements.
-A covering rule may itself be shadowed; it does not necessarily decide packet
-actions. See [project scope](docs/PROJECT_SCOPE.md) for planned work and boundaries.
+Help exits with code 0. Exit 1 is an expected outcome for the shadowed example.
+`check` reports `MATCH` or `MISMATCH`, expected and modeled actions, and the
+first deciding rule or default action. `check` does not run shadow analysis.
+`assess` runs both checks and blocks on any detected shadow, including
+same-action redundancy.
 
-The [independent requirements format](docs/REQUIREMENTS_FORMAT.md) and
-[T1–T8 baseline example](examples/requirements/baseline.yaml) define the next
-input contract. Safe requirements loading and field validation are available
-through `aclautoguard.requirements.load_requirements`. On a validated document,
-`aclautoguard.requirements_analysis.find_requirement_conflicts` detects overlapping
-requirements that demand opposite actions. Host-level ACL requirement checking
-is available through `check` and the Python API below. The `analyze` command
-continues to accept policy files only.
+### Expected example behavior
 
-The Python API `aclautoguard.evaluator.evaluate_connection` evaluates one concrete
-TCP, UDP, or ICMP flow against a policy returned by `load_policy`. It returns a
-`Decision(action, matched_rule_id)`; a `None` rule ID identifies the default action.
-Supply individual IPv4 address strings and a destination port for TCP/UDP (no
-port for ICMP). Invalid traffic input raises the module's `ConnectionError`.
-The policy protocol `ip` is a wildcard, not a concrete traffic protocol.
-This function is not exposed as a CLI command yet. It models a policy decision
-only; it sends no traffic and does not establish routing, ACL attachment, return
-traffic behavior, or real service reachability. The caller must establish that
-the evaluated policy applies to the flow.
+| Example | Selected checks | Expected result |
+| --- | --- | --- |
+| `corrected.yaml` | T1–T3 | All agree with the policy model; no single-rule shadows |
+| `shadowed.yaml` | T1 | HTTP permission is shadowed by `rule_10`; T1 disagrees with modeled deny |
 
-`aclautoguard.requirement_checker.check_host_requirements(policy, requirements,
-requirement_ids=["T1", "T2", "T3"])` compares explicitly selected requirements
-with modeled policy decisions. Both documents must already be validated. Each
-result includes the requirement ID, expected action, decision, and `satisfied`
-boolean. Selection asserts applicability; it does not verify the network path.
-Only `/32` endpoints with TCP/UDP and a specific destination port, or ICMP, are
-supported. Invalid selections, unsupported selected requirements, and any
-contradiction in the requirements document raise `RequirementCheckError`.
-Unselected entries receive no result. These are static model checks, not live
-connectivity results or proof of broader subnet access requirements.
+These results concern the supplied policy model. They do not establish actual
+connectivity or that a router applies the policy to the selected traffic.
 
-For file-based callers, the shared application function loads and validates both
-documents before checking selected IDs:
+## Static assessment reports
+
+Append `--report PATH` to `assess` in either interface:
+
+```sh
+aclautoguard assess examples/policies/corrected.yaml examples/requirements/baseline.yaml --ids T1 T2 T3 --report "static evidence.json"
+```
+
+The JSON report contains a UTC creation time, shadow findings, selected
+requirement results, blocking status, and limitations. The parent directory
+must exist. Existing files are never overwritten; use a fresh path for each
+run. Export failure produces CLI exit code 2 and leaves the shell open.
+
+These reports contain static analysis only. Live traffic, deployment, and
+recovery evidence remain future work. Review generated reports before sharing;
+the repository ignores `reports/`, `captures/`, `backups/`, and `logs/`.
+The root-level report filename above is not ignored automatically.
+
+## Supported inputs and limitations
+
+Policies use the project's YAML schema, rather than native router ACL syntax.
+See [shadowed](examples/policies/shadowed.yaml) and
+[corrected](examples/policies/corrected.yaml) examples. Supported policy fields
+include ordered permit/deny rules, strict IPv4 CIDRs, `ip`/`tcp`/`udp`/`icmp`,
+and an optional TCP/UDP destination port from 1 to 65535. The default action
+must be deny. Missing TCP/UDP ports mean all destination ports.
+
+Independent requirements describe intended access separately from proposed
+ACLs. See the [format](docs/REQUIREMENTS_FORMAT.md) and
+[T1–T8 baseline](examples/requirements/baseline.yaml). Requirement order gives
+no precedence; contradictory overlapping expectations are rejected by checking.
+
+Current boundaries:
+
+- Several earlier rules jointly shadowing a later rule are not detected.
+- A covering rule may itself be shadowed; it need not decide packet actions.
+- Requirement checking supports `/32` endpoints with TCP/UDP and a specific
+  destination port, or ICMP. Broader selected checks are rejected.
+- `--ids` explicitly selects applicable requirements. It does not establish
+  network paths or ACL attachment. Unselected requirements are not evaluated.
+- T1–T3 are intended Student traffic ACL checks. T4–T8 require separate path
+  and safeguard analysis; one Student ACL must not be assumed to enforce them.
+- IPv6, source-port conditions, port ranges, object groups, and advanced ACL
+  syntax are outside the supported subset.
+- A nonblocking assessment does not prove security, broad access compliance,
+  baseline health, recovery readiness, or deployment safety.
+
+## Python API
+
+Interfaces reuse functions in `aclautoguard.application`:
 
 ```python
-from aclautoguard.application import check_policy_requirements
+from aclautoguard.application import assess_policy
 
-results = check_policy_requirements(
+assessment = assess_policy(
     "examples/policies/corrected.yaml",
     "examples/requirements/baseline.yaml",
     requirement_ids=["T1", "T2", "T3"],
 )
-for result in results:
+print("Blocked:", assessment.blocked)
+for result in assessment.requirement_results:
     print(result.requirement_id, result.expected_action, result.decision, result.satisfied)
 ```
 
-Loading errors raise `PolicyError` or `RequirementsError`; invalid selections,
-conflicts, and unsupported checks raise `RequirementCheckError`. A mismatch is
-returned as a result with `satisfied=False`. This function does not run shadow
-analysis; use `analyze_policy` separately for that operation. The CLI `check`
-command and interactive shell both use this function and share result formatting.
+`analyze_policy(path)` returns shadow findings. `check_policy_requirements(...)`
+returns selected requirement results without shadow analysis. `assess_policy(...)`
+returns both. Invalid input raises `PolicyError`, `RequirementsError`, or
+`RequirementCheckError`; a modeled mismatch is returned as a result.
 
-For a combined local gate, the Python API
-`aclautoguard.application.assess_policy(policy_path, requirements_path,
-requirement_ids=["T1", "T2", "T3"])` loads each file once and returns a
-`StaticAssessment` with `shadow_findings`, `requirement_results`, and `blocked`.
-Any detected shadow (including same-action redundancy) or selected requirement
-mismatch makes `blocked=True`. Both types of findings are retained. Invalid
-or unsupported input raises the same errors as requirement checking and returns
-no assessment; callers must treat these errors as a stop condition.
+Lower-level APIs include `load_policy`, `load_requirements`,
+`find_requirement_conflicts`, `evaluate_connection`, and `check_host_requirements`.
+The evaluator returns `Decision(action, matched_rule_id)`, where a `None` ID
+identifies the default action. Its concrete traffic input accepts individual
+IPv4 addresses and TCP/UDP with a port, or ICMP without one. Policy `ip` is a
+wildcard, not a concrete traffic protocol. Invalid concrete input raises
+`aclautoguard.evaluator.ConnectionError`.
 
-`blocked=False` means only that the supported static checks found no blocking
-issue. Joint shadow coverage, broader requirements, ACL applicability, baseline
-health, and recovery readiness remain outside this gate. It does not authorize
-deployment or establish network behavior. Both interfaces expose the combined
-gate as `assess <policy-path> <requirements-path> --ids ID [ID ...]`. Exit codes
-are 0 for no blocking static findings, 1 for blocking findings, and 2 for input
-errors. For example:
+## Verification
 
 ```sh
-.venv/bin/aclautoguard assess examples/policies/corrected.yaml examples/requirements/baseline.yaml --ids T1 T2 T3
+.venv/bin/python -m pytest -x -q
 ```
 
-Optionally append `--report "static-evidence.json"` to `assess` in either
-interface. It creates a JSON static-assessment report with a UTC creation time,
-findings, selected requirement results, blocking status, and limitations. The
-parent directory must exist, and existing files are never overwritten. Export
-failure returns CLI code 2 (the shell stays open). This report contains no live
-traffic, deployment, or recovery evidence. Review reports before sharing;
-generated files can be kept under the ignored `reports/` directory.
+The current suite has **307 passing tests** at the latest verification. These
+check local software behavior, not router interaction or real network traffic.
 
-## Interactive shell
+## Remaining project work
 
-Launch `.venv/bin/aclautoguard` without arguments (or `aclautoguard` after
-activating the environment):
+The core still needs device inventory and setup, a verified router adapter,
+configuration inspection and backup, deployment preview and confirmation,
+command checking and readback, baseline/service controls, probes from the
+correct zones, verified restoration, and runtime evidence reports.
 
-```text
-ACLAutoGuard> help
-ACLAutoGuard> help analyze
-ACLAutoGuard> help check
-ACLAutoGuard> analyze examples/policies/shadowed.yaml
-ACLAutoGuard> analyze "my policies/policy.yaml"
-ACLAutoGuard> check examples/policies/corrected.yaml examples/requirements/baseline.yaml --ids T1 T2 T3
-ACLAutoGuard> exit
-```
+Router model, software, licensing, management access, topology, and recovery
+capabilities must be verified before device experiments. Management-loss
+recovery requires proven device-side rollback or an independent management
+path. The optional suspicious-traffic detection and temporary-blocking
+extension begins after core acceptance.
 
-EOF (Ctrl+D on Linux) also closes the shell cleanly with exit code 0.
-Analysis findings, requirement mismatches, and input errors leave the shell open
-for the next command. `check --help` also returns to the prompt.
-Ctrl+C at the prompt exits with code 130. Blank lines do nothing. Both
-interfaces use the same analysis, requirement checking, and output functions.
-Only `help`, `analyze`, `check`, `assess`, and `exit` are implemented in the shell.
-Type `help` to list every implemented command with required and optional arguments
-and usage examples. Use `help <command>` for the same details for one command.
-On terminals with Python Readline support, press Tab to complete commands,
-help topics, options, and file/directory paths. Press Tab twice to list ambiguous
-matches. Completion quotes paths containing spaces. Use Up/Down for in-session
-history; no history file is written. Systems without Readline keep the plain
-input shell. Color is enabled only for terminal output and can be disabled with
-`NO_COLOR=1`. Windows terminal completion has not been verified.
+Course deliverables also include a working Packet Tracer `.pkt`, Packet Tracer
+Simulation evidence, separate real Wireshark captures, a demonstration, and a
+PDF report. Packet Tracer simulated traffic is not directly captured by
+Wireshark.
 
-## Verify
-
-```sh
-.venv/bin/python -m pytest -q
-```
-
-Dependencies are pinned in `requirements.txt`. Linux is the verified development
-environment; Windows support has not been verified.
-
-See [implementation and evidence status](docs/IMPLEMENTATION_STATUS.md) for
-remaining core work, required lab details, and the requirements-to-evidence map.
+See [project scope](docs/PROJECT_SCOPE.md) and
+[implementation/evidence status](docs/IMPLEMENTATION_STATUS.md) for remaining
+work, lab prerequisites, and the requirements-to-evidence mapping.
