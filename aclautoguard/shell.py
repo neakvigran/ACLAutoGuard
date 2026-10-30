@@ -1,10 +1,12 @@
 """Interactive terminal shell for the currently implemented operations."""
 
 import argparse
+import os
 import shlex
 import sys
 
 from aclautoguard.arguments import add_check_arguments, add_report_argument
+from aclautoguard.completion import terminal_completion
 from aclautoguard.terminal import run_analysis, run_requirement_check, run_assessment
 
 
@@ -61,7 +63,20 @@ HELP = {
 
 def run_shell() -> int:
     """Read commands until exit or EOF; analysis errors keep the shell open."""
-    print("ACLAutoGuard — type help for available commands.")
+    with terminal_completion() as completion_available:
+        return _run_shell(completion_available)
+
+
+def _run_shell(completion_available: bool) -> int:
+    color = sys.stdout.isatty() and os.environ.get("TERM") != "dumb" and "NO_COLOR" not in os.environ
+    title = "ACLAutoGuard | ACL analysis workspace"
+    print(f"\033[1;36m{title}\033[0m" if color else title)
+    print("  Local policy analysis | No device connections")
+    print("  Type help for commands and examples. Ctrl+D or exit to close.")
+    if completion_available:
+        print("  Tab completes commands, options, and paths; Up/Down recalls session history.")
+    print()
+    prompt = "\001\033[1;36m\002ACLAutoGuard> \001\033[0m\002" if color else "ACLAutoGuard> "
     check_parser = argparse.ArgumentParser(prog="check")
     add_check_arguments(check_parser)
     assess_parser = argparse.ArgumentParser(prog="assess")
@@ -69,7 +84,7 @@ def run_shell() -> int:
     add_report_argument(assess_parser)
     while True:
         try:
-            line = input("ACLAutoGuard> ")
+            line = input(prompt)
         except EOFError:
             print()
             return 0

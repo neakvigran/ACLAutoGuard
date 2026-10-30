@@ -163,6 +163,12 @@ interfaces use the same analysis, requirement checking, and output functions.
 Only `help`, `analyze`, `check`, `assess`, and `exit` are implemented in the shell.
 Type `help` to list every implemented command with required and optional arguments
 and usage examples. Use `help <command>` for the same details for one command.
+On terminals with Python Readline support, press Tab to complete commands,
+help topics, options, and file/directory paths. Press Tab twice to list ambiguous
+matches. Completion quotes paths containing spaces. Use Up/Down for in-session
+history; no history file is written. Systems without Readline keep the plain
+input shell. Color is enabled only for terminal output and can be disabled with
+`NO_COLOR=1`. Windows terminal completion has not been verified.
 
 ## Verify
 
