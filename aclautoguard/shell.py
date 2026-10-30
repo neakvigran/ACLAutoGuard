@@ -63,18 +63,16 @@ HELP = {
 
 def run_shell() -> int:
     """Read commands until exit or EOF; analysis errors keep the shell open."""
-    with terminal_completion() as completion_available:
-        return _run_shell(completion_available)
+    with terminal_completion():
+        return _run_shell()
 
 
-def _run_shell(completion_available: bool) -> int:
+def _run_shell() -> int:
     color = sys.stdout.isatty() and os.environ.get("TERM") != "dumb" and "NO_COLOR" not in os.environ
     title = "ACLAutoGuard | ACL analysis workspace"
     print(f"\033[1;36m{title}\033[0m" if color else title)
     print("  Local policy analysis | No device connections")
     print("  Type help for commands and examples. Ctrl+D or exit to close.")
-    if completion_available:
-        print("  Tab completes commands, options, and paths; Up/Down recalls session history.")
     print()
     prompt = "\001\033[1;36m\002ACLAutoGuard> \001\033[0m\002" if color else "ACLAutoGuard> "
     check_parser = argparse.ArgumentParser(prog="check")
@@ -85,55 +83,62 @@ def _run_shell(completion_available: bool) -> int:
     while True:
         try:
             line = input(prompt)
+            if _execute_line(line, check_parser, assess_parser):
+                return 0
         except EOFError:
             print()
             return 0
         except KeyboardInterrupt:
             print()
-            return 130
 
-        try:
-            words = shlex.split(line)
-        except ValueError as exc:
-            print(f"Error: {exc}", file=sys.stderr)
-            continue
-        if not words:
-            continue
 
-        command, *args = words
-        if command == "exit":
-            if args:
-                print("Usage: exit", file=sys.stderr)
-            else:
-                return 0
-        elif command == "help":
-            if not args:
-                print("Available commands: help, analyze, check, assess, exit")
-                print(
-                    "Arguments in <angle brackets> are required; [square brackets] are optional.\n"
-                    "Replace placeholders without typing the brackets. Quote paths containing spaces.\n"
-                    "Paths are relative to your current directory. These commands send no network traffic.\n"
-                    "Selected IDs assert ACL applicability; they do not verify network paths.\n"
-                )
-                print("\n\n".join(HELP.values()))
-            elif len(args) == 1 and args[0] in HELP:
-                print(HELP[args[0]])
-            else:
-                print("Usage: help [help|analyze|check|assess|exit]", file=sys.stderr)
-        elif command == "analyze":
-            if len(args) != 1:
-                print("Usage: analyze <policy-path>", file=sys.stderr)
-            else:
-                run_analysis(args[0])
-        elif command in ("check", "assess"):
-            try:
-                parsed = (check_parser if command == "check" else assess_parser).parse_args(args)
-            except SystemExit:
-                # argparse exits for usage errors and --help; keep the shell open.
-                continue
-            if command == "check":
-                run_requirement_check(parsed.policy_path, parsed.requirements_path, parsed.ids)
-            else:
-                run_assessment(parsed.policy_path, parsed.requirements_path, parsed.ids, report_path=parsed.report)
+def _execute_line(
+    line: str, check_parser: argparse.ArgumentParser, assess_parser: argparse.ArgumentParser
+) -> bool:
+    """Run one command; return True only for an explicit exit command."""
+    try:
+        words = shlex.split(line)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return False
+    if not words:
+        return False
+
+    command, *args = words
+    if command == "exit":
+        if args:
+            print("Usage: exit", file=sys.stderr)
         else:
-            print(f"Unknown command: {command}. Type help.", file=sys.stderr)
+            return True
+    elif command == "help":
+        if not args:
+            print("Available commands: help, analyze, check, assess, exit")
+            print(
+                "Arguments in <angle brackets> are required; [square brackets] are optional.\n"
+                "Replace placeholders without typing the brackets. Quote paths containing spaces.\n"
+                "Paths are relative to your current directory. These commands send no network traffic.\n"
+                "Selected IDs assert ACL applicability; they do not verify network paths.\n"
+            )
+            print("\n\n".join(HELP.values()))
+        elif len(args) == 1 and args[0] in HELP:
+            print(HELP[args[0]])
+        else:
+            print("Usage: help [help|analyze|check|assess|exit]", file=sys.stderr)
+    elif command == "analyze":
+        if len(args) != 1:
+            print("Usage: analyze <policy-path>", file=sys.stderr)
+        else:
+            run_analysis(args[0])
+    elif command in ("check", "assess"):
+        try:
+            parsed = (check_parser if command == "check" else assess_parser).parse_args(args)
+        except SystemExit:
+            # argparse exits for usage errors and --help; keep the shell open.
+            return False
+        if command == "check":
+            run_requirement_check(parsed.policy_path, parsed.requirements_path, parsed.ids)
+        else:
+            run_assessment(parsed.policy_path, parsed.requirements_path, parsed.ids, report_path=parsed.report)
+    else:
+        print(f"Unknown command: {command}. Type help.", file=sys.stderr)
+    return False

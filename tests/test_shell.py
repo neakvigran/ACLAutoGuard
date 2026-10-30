@@ -25,6 +25,8 @@ def test_help_and_exit():
     result = session("help\nhelp analyze\nexit\nunknown\n")
     assert result.returncode == 0
     assert "ACLAutoGuard> " in result.stdout
+    assert "Ctrl+C cancels" not in result.stdout
+    assert "Tab completes" not in result.stdout
     assert "Available commands: help, analyze, check, assess, exit" in result.stdout
     assert "analyze <policy-path>" in result.stdout
     assert result.stderr == ""

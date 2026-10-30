@@ -57,7 +57,6 @@ aclautoguard
 ACLAutoGuard | ACL analysis workspace
   Local policy analysis | No device connections
   Type help for commands and examples. Ctrl+D or exit to close.
-  Tab completes commands, options, and paths; Up/Down recalls session history.
 
 ACLAutoGuard> help
 ```
@@ -80,7 +79,8 @@ parts. Do not type the brackets themselves. `--ids` requires one or more IDs.
   Press Tab twice to list ambiguous matches on GNU Readline.
 - **Up/Down:** recall commands from this session; no history file is written.
 - **Ctrl+D:** close the shell on Linux. `exit` also closes it with code 0.
-- **Ctrl+C at the prompt:** close with code 130.
+- **Ctrl+C:** cancel the current input or local command and return to the prompt.
+  Close the shell with Ctrl+D on an empty input line or by typing `exit`.
 
 Paths are relative to your current directory. Quote paths containing spaces,
 for example `analyze "my policies/policy.yaml"`. Completion inserts shell-safe
@@ -210,7 +210,7 @@ wildcard, not a concrete traffic protocol. Invalid concrete input raises
 .venv/bin/python -m pytest -x -q
 ```
 
-The current suite has **307 passing tests** at the latest verification. These
+The current suite has **312 passing tests** at the latest verification. These
 check local software behavior, not router interaction or real network traffic.
 
 ## Remaining project work
