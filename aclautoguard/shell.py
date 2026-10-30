@@ -9,16 +9,53 @@ from aclautoguard.terminal import run_analysis, run_requirement_check, run_asses
 
 
 HELP = {
-    "help": "help [command]: show available commands or command help.",
-    "analyze": 'analyze <policy-path>: validate and find single-rule shadows. '
-    'Quote paths containing spaces: analyze "my policies/policy.yaml"',
-    "check": "check <policy-path> <requirements-path> --ids ID [ID ...]: "
-    "compare selected host requirements with modeled ACL decisions. "
-    "No traffic is sent. Quote paths containing spaces.",
-    "exit": "exit: close ACLAutoGuard. EOF also closes the shell.",
-    "assess": "assess <policy-path> <requirements-path> --ids ID [ID ...]: "
-    "combine shadow analysis and selected host checks; no traffic is sent. "
-    "Optional --report PATH creates a static JSON report without overwriting files.",
+    "help": (
+        "help [command]\n"
+        "  Show all commands, arguments, and examples.\n"
+        "  command (optional): show help for just that command.\n"
+        "  Examples:\n"
+        "    help\n"
+        "    help assess"
+    ),
+    "analyze": (
+        "analyze <policy-path>\n"
+        "  Validate a policy and find single-earlier-rule shadows.\n"
+        "  policy-path (required): path to a YAML policy file.\n"
+        "  Examples:\n"
+        "    analyze examples/policies/shadowed.yaml\n"
+        '    analyze "my policies/policy.yaml"'
+    ),
+    "check": (
+        "check <policy-path> <requirements-path> --ids ID [ID ...]\n"
+        "  Compare selected host requirements with modeled ACL decisions.\n"
+        "  policy-path (required): path to a YAML policy file.\n"
+        "  requirements-path (required): path to independent YAML requirements.\n"
+        "  --ids (required): one or more applicable requirement IDs, separated by spaces.\n"
+        "  -h, --help (optional): show argument help and return to the prompt.\n"
+        "  Examples:\n"
+        "    check examples/policies/corrected.yaml examples/requirements/baseline.yaml --ids T1 T2 T3\n"
+        "    check --help"
+    ),
+    "assess": (
+        "assess <policy-path> <requirements-path> --ids ID [ID ...] [--report PATH]\n"
+        "  Combine shadow analysis and selected host requirement checks.\n"
+        "  policy-path (required): path to a YAML policy file.\n"
+        "  requirements-path (required): path to independent YAML requirements.\n"
+        "  --ids (required): one or more applicable requirement IDs, separated by spaces.\n"
+        "  --report PATH (optional): create a static JSON report; parent directory must exist.\n"
+        "    Existing files are never overwritten.\n"
+        "  -h, --help (optional): show argument help and return to the prompt.\n"
+        "  Examples:\n"
+        "    assess examples/policies/corrected.yaml examples/requirements/baseline.yaml --ids T1 T2 T3\n"
+        '    assess examples/policies/shadowed.yaml examples/requirements/baseline.yaml --ids T1 --report "static evidence.json"\n'
+        "    assess --help"
+    ),
+    "exit": (
+        "exit\n"
+        "  Close ACLAutoGuard. Takes no arguments. EOF also closes the shell.\n"
+        "  Example:\n"
+        "    exit"
+    ),
 }
 
 
@@ -57,6 +94,13 @@ def run_shell() -> int:
         elif command == "help":
             if not args:
                 print("Available commands: help, analyze, check, assess, exit")
+                print(
+                    "Arguments in <angle brackets> are required; [square brackets] are optional.\n"
+                    "Replace placeholders without typing the brackets. Quote paths containing spaces.\n"
+                    "Paths are relative to your current directory. These commands send no network traffic.\n"
+                    "Selected IDs assert ACL applicability; they do not verify network paths.\n"
+                )
+                print("\n\n".join(HELP.values()))
             elif len(args) == 1 and args[0] in HELP:
                 print(HELP[args[0]])
             else:

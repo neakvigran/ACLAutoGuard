@@ -161,6 +161,8 @@ for the next command. `check --help` also returns to the prompt.
 Ctrl+C at the prompt exits with code 130. Blank lines do nothing. Both
 interfaces use the same analysis, requirement checking, and output functions.
 Only `help`, `analyze`, `check`, `assess`, and `exit` are implemented in the shell.
+Type `help` to list every implemented command with required and optional arguments
+and usage examples. Use `help <command>` for the same details for one command.
 
 ## Verify
 

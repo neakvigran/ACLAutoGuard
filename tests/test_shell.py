@@ -30,6 +30,41 @@ def test_help_and_exit():
     assert result.stderr == ""
 
 
+def test_general_help_includes_arguments_and_examples_for_every_command():
+    result = session("help\nexit\n")
+    assert result.returncode == 0
+    assert result.stderr == ""
+    for usage in (
+        "help [command]", "analyze <policy-path>",
+        "check <policy-path> <requirements-path> --ids ID [ID ...]",
+        "assess <policy-path> <requirements-path> --ids ID [ID ...] [--report PATH]",
+        "Close ACLAutoGuard. Takes no arguments.",
+    ):
+        assert usage in result.stdout
+    for detail in (
+        "policy-path (required)", "requirements-path (required)",
+        "--ids (required)", "--report PATH (optional)", "-h, --help (optional)",
+        "Existing files are never overwritten", "Quote paths containing spaces",
+        "analyze examples/policies/shadowed.yaml",
+        "check examples/policies/corrected.yaml examples/requirements/baseline.yaml --ids T1 T2 T3",
+        '--report "static evidence.json"',
+    ):
+        assert detail in result.stdout
+    assert "setup" not in result.stdout
+    assert "deploy" not in result.stdout
+
+
+@pytest.mark.parametrize("command", ["help", "analyze", "check", "assess", "exit"])
+def test_command_help_matches_general_help(command):
+    from aclautoguard.shell import HELP
+
+    result = session(f"help {command}\nexit\n")
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert HELP[command] in result.stdout
+    assert "Example" in result.stdout
+
+
 @pytest.mark.parametrize("commands", ["", "\n", "help\n"])
 def test_clean_eof(commands):
     result = session(commands)
