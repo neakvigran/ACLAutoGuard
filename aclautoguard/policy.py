@@ -1,4 +1,4 @@
-"""Load policy files and validate their top-level structure."""
+"""Load policy files and validate their structure and supported rules."""
 
 from ipaddress import IPv4Network
 from pathlib import Path
@@ -33,7 +33,7 @@ UniqueKeyLoader.add_constructor(
 
 
 def load_policy(path: str | Path) -> dict:
-    """Read a policy and check structure; rule validation is pending."""
+    """Read a policy and validate its structure and supported rule fields."""
     try:
         text = Path(path).read_text(encoding="utf-8")
         policy = yaml.load(text, Loader=UniqueKeyLoader)
