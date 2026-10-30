@@ -32,7 +32,7 @@ def test_help_and_check_results():
     assert "usage: check" in result.stdout
     assert "Checked 3 selected requirements; 0 mismatches." in result.stdout
     assert "T1: MISMATCH; expected permit, modeled deny" in result.stdout
-    assert "Available commands: help, analyze, check, exit" in result.stdout
+    assert "Available commands: help, analyze, check, assess, exit" in result.stdout
     assert "no traffic was sent" in result.stdout
     assert result.stderr == ""
 

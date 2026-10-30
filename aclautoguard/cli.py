@@ -3,9 +3,9 @@
 import argparse
 import sys
 
-from aclautoguard.arguments import add_check_arguments
+from aclautoguard.arguments import add_check_arguments, add_report_argument
 from aclautoguard.shell import run_shell
-from aclautoguard.terminal import run_analysis, run_requirement_check
+from aclautoguard.terminal import run_analysis, run_requirement_check, run_assessment
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -23,8 +23,15 @@ def main(argv: list[str] | None = None) -> int:
         "check", help="compare selected host requirements with modeled ACL decisions"
     )
     add_check_arguments(check)
+    assess = commands.add_parser(
+        "assess", help="combine shadow analysis and selected host requirement checks"
+    )
+    add_check_arguments(assess)
+    add_report_argument(assess)
     args = parser.parse_args(argv)
 
+    if args.command == "assess":
+        return run_assessment(args.policy_path, args.requirements_path, args.ids, report_path=args.report)
     if args.command == "check":
         return run_requirement_check(args.policy_path, args.requirements_path, args.ids)
     return run_analysis(args.policy_path)

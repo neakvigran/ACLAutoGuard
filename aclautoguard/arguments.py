@@ -11,3 +11,9 @@ def add_check_arguments(parser: argparse.ArgumentParser) -> None:
         "--ids", required=True, nargs="+", action="extend", metavar="ID",
         help="explicit requirement IDs applicable to this policy (e.g. T1 T2 T3)",
     )
+
+
+def add_report_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--report", metavar="PATH", help="create a static JSON report; never overwrite an existing file"
+    )

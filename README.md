@@ -111,6 +111,35 @@ returned as a result with `satisfied=False`. This function does not run shadow
 analysis; use `analyze_policy` separately for that operation. The CLI `check`
 command and interactive shell both use this function and share result formatting.
 
+For a combined local gate, the Python API
+`aclautoguard.application.assess_policy(policy_path, requirements_path,
+requirement_ids=["T1", "T2", "T3"])` loads each file once and returns a
+`StaticAssessment` with `shadow_findings`, `requirement_results`, and `blocked`.
+Any detected shadow (including same-action redundancy) or selected requirement
+mismatch makes `blocked=True`. Both types of findings are retained. Invalid
+or unsupported input raises the same errors as requirement checking and returns
+no assessment; callers must treat these errors as a stop condition.
+
+`blocked=False` means only that the supported static checks found no blocking
+issue. Joint shadow coverage, broader requirements, ACL applicability, baseline
+health, and recovery readiness remain outside this gate. It does not authorize
+deployment or establish network behavior. Both interfaces expose the combined
+gate as `assess <policy-path> <requirements-path> --ids ID [ID ...]`. Exit codes
+are 0 for no blocking static findings, 1 for blocking findings, and 2 for input
+errors. For example:
+
+```sh
+.venv/bin/aclautoguard assess examples/policies/corrected.yaml examples/requirements/baseline.yaml --ids T1 T2 T3
+```
+
+Optionally append `--report "static-evidence.json"` to `assess` in either
+interface. It creates a JSON static-assessment report with a UTC creation time,
+findings, selected requirement results, blocking status, and limitations. The
+parent directory must exist, and existing files are never overwritten. Export
+failure returns CLI code 2 (the shell stays open). This report contains no live
+traffic, deployment, or recovery evidence. Review reports before sharing;
+generated files can be kept under the ignored `reports/` directory.
+
 ## Interactive shell
 
 Launch `.venv/bin/aclautoguard` without arguments (or `aclautoguard` after
@@ -131,7 +160,7 @@ Analysis findings, requirement mismatches, and input errors leave the shell open
 for the next command. `check --help` also returns to the prompt.
 Ctrl+C at the prompt exits with code 130. Blank lines do nothing. Both
 interfaces use the same analysis, requirement checking, and output functions.
-Only `help`, `analyze`, `check`, and `exit` are implemented in the shell.
+Only `help`, `analyze`, `check`, `assess`, and `exit` are implemented in the shell.
 
 ## Verify
 
@@ -141,3 +170,6 @@ Only `help`, `analyze`, `check`, and `exit` are implemented in the shell.
 
 Dependencies are pinned in `requirements.txt`. Linux is the verified development
 environment; Windows support has not been verified.
+
+See [implementation and evidence status](docs/IMPLEMENTATION_STATUS.md) for
+remaining core work, required lab details, and the requirements-to-evidence map.
